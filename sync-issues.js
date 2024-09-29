@@ -11,7 +11,9 @@ const org = process.env.ORG_NAME;
 async function getAllProjects() {
   let page = 1;
   let allProjects = [];
-  do {
+  let hasNextPage = true;
+  
+  while (hasNextPage) {
     const response = await octokit.projects.listForOrg({
       org,
       state: "open",
@@ -21,7 +23,9 @@ async function getAllProjects() {
     allProjects.push(...response.data);
     console.log(`Projects on page ${page}:`, JSON.stringify(response.data, null, 2));
     page++;
-  } while (response.data.length === 100); // Assumes pagination if exactly 100 projects are returned
+    hasNextPage = response.data.length === 100; // Continue if there are exactly 100 projects, assuming more pages exist
+  }
+
   return allProjects;
 }
 
