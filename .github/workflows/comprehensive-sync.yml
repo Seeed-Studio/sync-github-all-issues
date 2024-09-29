@@ -1,0 +1,37 @@
+name: Comprehensive Sync Existing Issues to Central Project
+
+on:
+  workflow_dispatch: # Manual trigger
+  schedule:
+    - cron: '0 0 * * SUN' # Weekly on Sundays at midnight
+
+permissions:
+  contents: read
+  issues: read
+  projects: write
+
+jobs:
+  sync_all_issues:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: Install Dependencies
+        run: |
+          npm install @octokit/rest
+
+      - name: Run Sync Script
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROJECT_NUMBER: '/projects/17'
+          ORG_NAME: 'Seeed-Studio'
+          COLUMN_NAME: 'Raw To Do'
+        run: |
+          node sync-issues.js
