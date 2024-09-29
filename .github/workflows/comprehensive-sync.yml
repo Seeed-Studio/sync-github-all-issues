@@ -25,7 +25,7 @@ jobs:
       - name: Run Sync Script
         env:
           GITHUB_TOKEN: ${{ secrets.ISSUE_ASSEMBLE }}
-          PROJECT_NUMBER: '17'
+          PROJECT_NUMBER: '12'
           ORG_NAME: 'Seeed-Studio'
           COLUMN_NAME: 'To Do'
         run: |
