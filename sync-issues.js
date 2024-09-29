@@ -1,5 +1,5 @@
 // sync-issues.js
-import { Octokit } from "@octokit/rest";
+import { Octokit } from "@octokit/rest"; 
 import fetch from 'node-fetch';
 
 // Initialize Octokit with authentication and node-fetch
