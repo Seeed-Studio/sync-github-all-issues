@@ -12,6 +12,7 @@
   "license": "ISC",
   "dependencies": {
     "@octokit/rest": "^21.0.2",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "@octokit/graphql": "^5.0.0"
   }
 }

@@ -1,160 +1,196 @@
 // sync-issues.js
-import { Octokit } from "@octokit/rest"; 
+import { graphql } from "@octokit/graphql";
 import fetch from 'node-fetch';
 
-// Initialize Octokit with authentication and node-fetch
-const octokit = new Octokit({
-  auth: process.env.GITHUB_TOKEN,
-  request: {
-    fetch,
+// Initialize GraphQL client with authentication
+const graphqlWithAuth = graphql.defaults({
+  headers: {
+    authorization: `token ${process.env.GITHUB_TOKEN}`,
   },
 });
 
 // Environment Variables
-const PROJECT_NUMBER = process.env.PROJECT_NUMBER; // e.g., '17'
+const PROJECT_NUMBER = parseInt(process.env.PROJECT_NUMBER, 10); // e.g., 17
 const ORG_NAME = process.env.ORG_NAME; // e.g., 'Seeed-Studio'
 const COLUMN_NAME = process.env.COLUMN_NAME; // e.g., 'To Do'
 
-// Function to retrieve the Project ID based on PROJECT_NUMBER
-async function getProjectId(org, projectNumber) {
-  try {
-    const response = await octokit.rest.projects.listForOrg({
-      org,
-      state: 'open',
-      per_page: 100,
-    });
+// Function to retrieve ProjectV2 ID based on project number
+async function getProjectV2Id(org, projectNumber) {
+  const query = `
+    query ($org: String!, $projectNumber: Int!) {
+      organization(login: $org) {
+        projectsV2(first: 100, states: OPEN) {
+          nodes {
+            id
+            number
+            title
+          }
+        }
+      }
+    }
+  `;
 
-    const project = response.data.find(proj => proj.number === parseInt(projectNumber, 10));
+  const variables = {
+    org,
+    projectNumber,
+  };
+
+  try {
+    const response = await graphqlWithAuth(query, variables);
+    const projects = response.organization.projectsV2.nodes;
+    const project = projects.find(p => p.number === projectNumber);
+
     if (!project) {
       throw new Error(`Project number ${projectNumber} not found in organization ${org}.`);
     }
 
+    console.log(`📁 Found ProjectV2 ID: ${project.id} with title: "${project.title}"`);
     return project.id;
   } catch (error) {
-    console.error(`Error fetching projects for org ${org}:`, error);
+    console.error(`Error fetching ProjectV2 for org ${org}:`, error);
     throw error;
   }
 }
 
-// Function to retrieve the Column ID based on COLUMN_NAME
-async function getColumnId(projectId, columnName) {
-  try {
-    const response = await octokit.rest.projects.listColumns({
-      project_id: projectId,
-      per_page: 100,
-    });
-
-    const column = response.data.find(col => col.name === columnName);
-    if (!column) {
-      throw new Error(`Column "${columnName}" not found in project ID ${projectId}.`);
-    }
-
-    return column.id;
-  } catch (error) {
-    console.error(`Error fetching columns for project ID ${projectId}:`, error);
-    throw error;
-  }
-}
-
-// Function to list all repositories within the organization
+// Function to retrieve all repositories within the organization
 async function listAllRepositories(org) {
-  try {
-    const repos = [];
-    let page = 1;
-    const per_page = 100;
-    while (true) {
-      const response = await octokit.rest.repos.listForOrg({
-        org,
-        type: 'all',
-        per_page,
-        page,
-      });
-      repos.push(...response.data);
-      if (response.data.length < per_page) break;
-      page += 1;
+  const query = `
+    query ($org: String!, $after: String) {
+      organization(login: $org) {
+        repositories(first: 100, after: $after, isFork: false) {
+          nodes {
+            name
+            owner {
+              login
+            }
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+        }
+      }
     }
-    return repos;
-  } catch (error) {
-    console.error(`Error listing repositories for org ${org}:`, error);
-    throw error;
+  `;
+
+  const repositories = [];
+  let hasNextPage = true;
+  let after = null;
+
+  while (hasNextPage) {
+    const variables = { org, after };
+    const response = await graphqlWithAuth(query, variables);
+    const repos = response.organization.repositories.nodes;
+    repositories.push(...repos);
+
+    hasNextPage = response.organization.repositories.pageInfo.hasNextPage;
+    after = response.organization.repositories.pageInfo.endCursor;
   }
+
+  console.log(`📋 Found ${repositories.length} repositories in organization "${org}".`);
+  return repositories;
 }
 
-// Function to list all issues in a specific repository
-async function listAllIssues(owner, repo) {
-  try {
-    const issues = [];
-    let page = 1;
-    const per_page = 100;
-    while (true) {
-      const response = await octokit.rest.issues.listForRepo({
-        owner,
-        repo,
-        state: 'all',
-        per_page,
-        page,
-      });
-      // Exclude pull requests
-      const repoIssues = response.data.filter(issue => !issue.pull_request);
-      issues.push(...repoIssues);
-      if (response.data.length < per_page) break;
-      page += 1;
+// Function to retrieve all issues in a repository
+async function listAllIssues(org, repo) {
+  const query = `
+    query ($org: String!, $repo: String!, $after: String) {
+      repository(owner: $org, name: $repo) {
+        issues(first: 100, after: $after, states: [OPEN, CLOSED]) {
+          nodes {
+            id
+            number
+            title
+            url
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+        }
+      }
     }
-    return issues;
-  } catch (error) {
-    console.error(`Error listing issues for repo ${owner}/${repo}:`, error);
-    throw error;
+  `;
+
+  const issues = [];
+  let hasNextPage = true;
+  let after = null;
+
+  while (hasNextPage) {
+    const variables = { org, repo, after };
+    const response = await graphqlWithAuth(query, variables);
+    const fetchedIssues = response.repository.issues.nodes;
+    issues.push(...fetchedIssues);
+
+    hasNextPage = response.repository.issues.pageInfo.hasNextPage;
+    after = response.repository.issues.pageInfo.endCursor;
   }
+
+  console.log(`📝 Found ${issues.length} issues in repository "${repo}".`);
+  return issues;
 }
 
-// Function to add an issue to the specified Project column
-async function addIssueToColumn(columnId, issue) {
+// Function to add an issue to ProjectV2 as an item
+async function addIssueToProjectV2(projectId, issueId) {
+  const mutation = `
+    mutation ($projectId: ID!, $contentId: ID!) {
+      addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
+        item {
+          id
+          content {
+            ... on Issue {
+              number
+              title
+              url
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    projectId,
+    contentId: issueId,
+  };
+
   try {
-    await octokit.rest.projects.createCard({
-      column_id: columnId,
-      content_id: issue.id, // Use the issue's database ID
-      content_type: 'Issue',
-    });
-    console.log(`✅ Added Issue #${issue.number}: "${issue.title}" to column.`);
+    const response = await graphqlWithAuth(mutation, variables);
+    const item = response.addProjectV2ItemById.item;
+    console.log(`✅ Added Issue #${item.content.number}: "${item.content.title}" to the Project.`);
   } catch (error) {
-    if (error.status === 422) {
-      console.log(`ℹ️ Issue #${issue.number}: "${issue.title}" is already in the project. Skipping.`);
+    if (error.message.includes("already exists")) {
+      console.log(`ℹ️ Issue is already in the Project. Skipping.`);
     } else {
-      console.error(`❌ Error adding Issue #${issue.number}: "${issue.title}" -`, error.message);
+      console.error(`❌ Error adding issue to Project:`, error);
     }
   }
 }
 
-// Main function to orchestrate the synchronization
+// Main synchronization function
 async function syncIssuesToProject() {
   try {
     console.log(`🔄 Starting sync for organization: ${ORG_NAME}`);
 
-    // Retrieve Project ID
-    const projectId = await getProjectId(ORG_NAME, PROJECT_NUMBER);
-    console.log(`📁 Found Project ID: ${projectId}`);
+    // Step 1: Get ProjectV2 ID
+    const projectId = await getProjectV2Id(ORG_NAME, PROJECT_NUMBER);
 
-    // Retrieve Column ID
-    const columnId = await getColumnId(projectId, COLUMN_NAME);
-    console.log(`📂 Found Column ID: ${columnId}`);
+    // Step 2: List all repositories in the organization
+    const repositories = await listAllRepositories(ORG_NAME);
 
-    // Retrieve all repositories in the organization
-    console.log(`📦 Listing all repositories in organization "${ORG_NAME}"...`);
-    const repos = await listAllRepositories(ORG_NAME);
-    console.log(`📋 Found ${repos.length} repositories.`);
-
-    // Iterate through each repository and its issues
-    for (const repo of repos) {
+    // Step 3: Iterate through each repository and fetch issues
+    for (const repo of repositories) {
       const { name: repoName, owner } = repo;
       console.log(`🔍 Processing repository: ${repoName}`);
 
-      // List all issues in the repository
       const issues = await listAllIssues(owner.login, repoName);
-      console.log(`📝 Found ${issues.length} issues in ${repoName}.`);
 
       for (const issue of issues) {
-        // Add the issue to the specified Project column
-        await addIssueToColumn(columnId, issue);
+        try {
+          await addIssueToProjectV2(projectId, issue.id);
+        } catch (error) {
+          console.error(`Error adding Issue #${issue.number} to Project:`, error);
+        }
       }
     }
 
