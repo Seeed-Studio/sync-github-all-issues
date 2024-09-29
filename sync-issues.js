@@ -7,40 +7,41 @@ const octokit = new Octokit({
 });
 
 const org = process.env.ORG_NAME;
-const projectNumber = 17;
-const columnName = process.env.COLUMN_NAME;
 
-async function getProjectId() {
-  const { data: projects, status } = await octokit.projects.listForOrg({
-    org,
-    state: "open",
-  });
-  console.log("API Response Status:", status);
-  console.log("Projects returned:", JSON.stringify(projects, null, 2));
+async function getAllProjects() {
+  let page = 1;
+  let allProjects = [];
+  do {
+    const response = await octokit.projects.listForOrg({
+      org,
+      state: "open",
+      per_page: 100,
+      page
+    });
+    allProjects.push(...response.data);
+    console.log(`Projects on page ${page}:`, JSON.stringify(response.data, null, 2));
+    page++;
+  } while (response.data.length === 100); // Assumes pagination if exactly 100 projects are returned
+  return allProjects;
+}
+
+async function findProjectByNumber(projectNumber) {
+  const projects = await getAllProjects();
   const project = projects.find(p => p.number === parseInt(projectNumber, 10));
   if (!project) {
     console.error("No matching project found.");
     throw new Error("Project not found");
   }
+  console.log(`Found project: ${JSON.stringify(project, null, 2)}`);
   return project.id;
 }
-
-
-// Similar refactor for other functions...
 
 (async () => {
   try {
     console.log("Starting synchronization process...");
-    const projectId = await getProjectId();
-    const columnId = await getColumnId(projectId);
-    const repositories = await getAllRepositories();
-    const issues = await getAllIssues(repositories);
-
-    for (const issue of issues) {
-      if (issue.pull_request) continue; // Skip pull requests
-      await addIssueToProject(issue, projectId, columnId);
-    }
-
+    const projectNumber = process.env.PROJECT_NUMBER; // Ensure this is just the number e.g., '17'
+    const projectId = await findProjectByNumber(projectNumber);
+    console.log(`Project ID: ${projectId}`);
     console.log("Synchronization completed successfully.");
   } catch (error) {
     console.error("Error during synchronization:", error);
