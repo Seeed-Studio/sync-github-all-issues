@@ -20,7 +20,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          npm install @octokit/rest
+          npm install
 
       - name: Run Sync Script
         env:
@@ -29,4 +29,4 @@ jobs:
           ORG_NAME: 'Seeed-Studio'
           COLUMN_NAME: 'Raw To Do'
         run: |
-          node sync-issues.mjs
+          node sync-issues.js
