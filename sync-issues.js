@@ -25,6 +25,29 @@ async function getProjectId() {
   return project.id;
 }
 
+async function getAllProjects() {
+  let page = 1;
+  let allProjects = [];
+  while (true) {
+    const { data: projects, headers } = await octokit.projects.listForOrg({
+      org,
+      state: "open",
+      per_page: 100,
+      page
+    });
+    console.log(`Projects on page ${page}:`, JSON.stringify(projects, null, 2));
+    allProjects.push(...projects);
+    if (headers.link && headers.link.includes('rel="next"')) {
+      page++;
+    } else {
+      break;
+    }
+  }
+  return allProjects;
+}
+
+// Use this function in your main async function to fetch and log all projects
+
 // Similar refactor for other functions...
 
 (async () => {
