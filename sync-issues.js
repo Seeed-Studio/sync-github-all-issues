@@ -16,7 +16,7 @@ async function getAllProjects() {
   while (hasNextPage) {
     const response = await octokit.projects.listForOrg({
       org,
-      state: "open",
+      state: "all",
       per_page: 100,
       page
     });
