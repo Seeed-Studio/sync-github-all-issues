@@ -16,14 +16,14 @@ async function getAllProjects() {
   while (hasNextPage) {
     const response = await octokit.projects.listForOrg({
       org,
-      state: "all",
+      state: "all",  // Consider all projects regardless of their state
       per_page: 100,
       page
     });
     allProjects.push(...response.data);
-    console.log(`Projects on page ${page}:`, JSON.stringify(response.data, null, 2));
+    console.log(`Projects on page ${page}:`, JSON.stringify(response.data.map(p => ({ number: p.number, state: p.state })), null, 2));
     page++;
-    hasNextPage = response.data.length === 100; // Continue if there are exactly 100 projects, assuming more pages exist
+    hasNextPage = response.data.length === 100;
   }
 
   return allProjects;
@@ -33,7 +33,7 @@ async function findProjectByNumber(projectNumber) {
   const projects = await getAllProjects();
   const project = projects.find(p => p.number === parseInt(projectNumber, 10));
   if (!project) {
-    console.error("No matching project found.");
+    console.error(`No matching project found for number ${projectNumber}.`);
     throw new Error("Project not found");
   }
   console.log(`Found project: ${JSON.stringify(project, null, 2)}`);
@@ -43,7 +43,7 @@ async function findProjectByNumber(projectNumber) {
 (async () => {
   try {
     console.log("Starting synchronization process...");
-    const projectNumber = process.env.PROJECT_NUMBER; // Ensure this is just the number e.g., '17'
+    const projectNumber = process.env.PROJECT_NUMBER; // Ensure this is just the number, e.g., '17'
     const projectId = await findProjectByNumber(projectNumber);
     console.log(`Project ID: ${projectId}`);
     console.log("Synchronization completed successfully.");
