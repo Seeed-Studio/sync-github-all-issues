@@ -1,4 +1,12 @@
 import { Octokit } from "@octokit/rest";
+import fetch from 'node-fetch';
+
+const octokit = new Octokit({
+  auth: process.env.GITHUB_TOKEN,
+  request: {
+    fetch: fetch
+  }
+});
 
 const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN,
