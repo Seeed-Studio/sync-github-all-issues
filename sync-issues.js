@@ -11,11 +11,17 @@ const projectNumber = process.env.PROJECT_NUMBER;
 const columnName = process.env.COLUMN_NAME;
 
 async function getProjectId() {
-  console.log(`Fetching projects for org: ${org}`);
-  const { data: projects } = await octokit.projects.listForOrg({ org, state: "open" });
+  const { data: projects, status } = await octokit.projects.listForOrg({
+    org,
+    state: "open",
+  });
+  console.log("API Response Status:", status);
+  console.log("Projects returned:", JSON.stringify(projects, null, 2));
   const project = projects.find(p => p.number === parseInt(projectNumber, 10));
-  if (!project) throw new Error("Project not found");
-  console.log(`Project ID: ${project.id}`);
+  if (!project) {
+    console.error("No matching project found.");
+    throw new Error("Project not found");
+  }
   return project.id;
 }
 
