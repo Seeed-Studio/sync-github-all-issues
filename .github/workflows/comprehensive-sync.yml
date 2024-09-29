@@ -27,6 +27,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.ISSUE_ASSEMBLE }}
           PROJECT_NUMBER: '17'
           ORG_NAME: 'Seeed-Studio'
-          COLUMN_NAME: 'Raw To Do'
+          COLUMN_NAME: 'To Do'
         run: |
           node sync-issues.js
