@@ -29,4 +29,4 @@ jobs:
           ORG_NAME: 'Seeed-Studio'
           COLUMN_NAME: 'Raw To Do'
         run: |
-          node sync-issues.js
+          node sync-issues.mjs
