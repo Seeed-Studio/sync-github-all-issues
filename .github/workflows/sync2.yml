@@ -10,13 +10,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      
+
       - name: Add issue to project
         uses: octokit/request-action@v2.x
         with:
-          route: POST /projects/columns/:column_id/cards
+          route: POST /projects/columns/f75ad846/cards
           mediaType: '{"previews": ["inertia"]}'
-          data: '{"note": "Issue: ${{ github.event.issue.title }}\nDescription: ${{ github.event.issue.body }}\nState: ${{ github.event.issue.state }}\nLabels: ${{ toJson(github.event.issue.labels.*.name) }}"}'
-          column_id: f75ad846
+          requestBody: '{"note": "Issue: ${{ github.event.issue.title }}\nDescription: ${{ github.event.issue.body }}\nState: ${{ github.event.issue.state }}\nLabels: ${{ toJson(github.event.issue.labels.*.name) }}"}'
         env:
           GITHUB_TOKEN: ${{ secrets.ISSUE_ASSEMBLE }}
