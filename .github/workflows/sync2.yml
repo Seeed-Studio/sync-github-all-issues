@@ -1,0 +1,24 @@
+name: Issue to Project Automation
+
+on:
+  issues:
+    types: [opened, edited, deleted, transferred, pinned, unpinned, closed, reopened, assigned, unassigned, labeled, unlabeled, locked, unlocked, milestoned, demilestoned]
+
+jobs:
+  add_issue_to_project:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Add issue to project
+        uses: octokit/request-action@v2.x
+        with:
+          route: POST /repos/{owner}/{repo}/projects/columns/cards
+          headers: '{"Accept": "application/vnd.github.inertia-preview+json"}'
+          data: '{"note": "Issue: ${{ github.event.issue.title }}\nDescription: ${{ github.event.issue.body }}\nState: ${{ github.event.issue.state }}\nLabels: ${{ toJson(github.event.issue.labels.*.name) }}"}'
+          owner: orgs/Seeed-Studio
+          repo: projects/17
+          project_column_id: f75ad846  # You need to replace this with your actual project column ID
+        env:
+          GITHUB_TOKEN: ${{ secrets.ISSUE_ASSEMBLE }}
