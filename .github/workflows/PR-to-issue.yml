@@ -1,0 +1,57 @@
+name: Convert PR to Issue
+
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  convert_to_issue:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+
+    steps:
+      - name: Convert PR to Issue
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const issueTitle = `PR: ${context.payload.pull_request.title}`;
+            const issueBody = `This issue is auto-generated from PR #${context.payload.pull_request.number}\n\nOriginal PR Description:\n${context.payload.pull_request.body}\n\n[Link to PR](${context.payload.pull_request.html_url})`;
+            
+            // Create the issue
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: issueTitle,
+              body: issueBody,
+              labels: ['PR']
+            });
+
+      - name: Create label if not exists
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const color = '708069';
+            const labelName = 'PR';
+            try {
+              // Try to get the label, if it doesn't exist, it will throw an error
+              await github.rest.issues.getLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: labelName
+              });
+            } catch (error) {
+              // If the label doesn't exist, create it
+              if (error.status === 404) {
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: labelName,
+                  color: color
+                });
+              } else {
+                throw error;
+              }
+            }
