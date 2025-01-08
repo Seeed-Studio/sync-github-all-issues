@@ -47,25 +47,30 @@ function main() {
             dis_time=$(getTimeDiff $create_time)
 
             if [ "$dis_time" -gt "$time_before_issue_stale" ]; then
+                echo "This issue needs to add stale label"
                 commentAndLabel
             fi
             continue
         fi
 
+        last_comment_user=$(echo "$last_comment" | jq -r '.author.login')
         last_comment_time=$(echo "$last_comment" | jq -r '.createdAt')
         dis_time=$(getTimeDiff $last_comment_time)
 
         if [ "$is_stale" ]; then
             if [ "$dis_time" -gt "$time_before_issue_close" ]; then
+                echo "This issue needs to be closed"
                 commentAndClose
                 continue
             fi
 
             if [ "$last_comment_user" != "github-actions" ]; then
+                echo "This issue needs to be removed from the stale state"
                 unLabel
             fi
         else
             if [ "$dis_time" -gt "$time_before_issue_stale" ]; then
+                echo "This issue needs to add stale label"
                 commentAndLabel
             fi
         fi
